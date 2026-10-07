@@ -1,0 +1,38 @@
+{
+  "title": "2025 vs 2026: growth came from price, not volume",
+  "subtitle": "Jan–Sep comparison of CRM deals and ad spend for Sample Academy",
+  "verification_stamp": "Numbers verified against CRM and ad exports",
+  "pivots": [
+    {"title": "Closing outage", "period": "2026", "month": "Apr", "evidence": "Win rate fell from 9.95% to 3.27% while inquiries stayed flat (1,738 to 1,806). Lost deals doubled from 521 to 1,083.", "lesson": "Closing infrastructure is a single point of failure. Keep a warm backup line."},
+    {"title": "Efficiency peak", "period": "2026", "month": "Aug", "evidence": "CAC dropped to $54.43 with a 13.47% win rate on 263 won deals.", "lesson": "Make August's offer and creative the blueprint."},
+    {"title": "Lead-quality trap", "period": "2026", "month": "Sep", "evidence": "Inquiries jumped to 4,100 against a 2,077 median while win rate fell to 4.39%.", "lesson": "Freebie offers inflate leads and starve sales. Gate lead magnets on buying intent."}
+  ],
+  "efficiency": {"headline": "August shows what efficient growth looks like", "bullets": ["CAC $54.43 vs a $75.18 median for the year", "Win rate 13.47% on 263 deals", "Same spend level, better lead intent"]},
+  "channel_story": "WhatsApp closes 85.54% of deals: ads capture leads, chat closes them.",
+  "geo_story": "Egypt brings 72% of deals but 49.28% of revenue. Saudi Arabia, Kuwait and UAE pay an AOV of $231 to $241.",
+  "campaign_takeaways": {"2026-Q3 Leads": "Best ROAS of the year at 1.98x despite the September trap."},
+  "content_takeaways": {"Freebie / Lead magnet": "Cheapest leads ($3.89 CPL) but they did not convert in September."},
+  "evolution": [
+    {"quarter": "2026 Q1", "pivot": "New sales team takes over from the central desk", "evidence": "1,639 won in Jan–Sep 2026"},
+    {"quarter": "2026 Q2", "pivot": "April closing outage", "evidence": "Win rate 3.27%"},
+    {"quarter": "2026 Q3", "pivot": "August efficiency, then the September freebie spike", "evidence": "CAC $54.43, then inquiries 4,100"}
+  ],
+  "pillars": [
+    {"name": "Lead quality over lead volume", "actions": ["Replace freebie magnets with professional tools", "Score leads before routing"], "kpi": "Win rate above 10%"},
+    {"name": "Closing redundancy", "actions": ["Backup messaging line", "Route leads within 60 seconds"], "kpi": "No month below 8% win rate"},
+    {"name": "Price and mix", "actions": ["Push bundles and new versions", "Separate Gulf pricing"], "kpi": "AOV above $130"},
+    {"name": "Creative pipeline", "actions": ["Refresh ads before frequency passes 3.3", "Test 3 archetypes per month"], "kpi": "Frequency under 3.3"}
+  ],
+  "targets": [
+    {"period": "Q4 2026", "revenue": "$80K", "cac": "$65", "win_rate": "10%"},
+    {"period": "Q1 2027", "revenue": "$85K", "cac": "$62", "win_rate": "11%"}
+  ],
+  "mandates": [
+    "Never run a freebie lead magnet without a buying-intent filter.",
+    "Keep a warm backup for every closing channel.",
+    "Judge growth by revenue = deals × AOV, not by lead count.",
+    "Verify owner start dates before any sales-team report.",
+    "Refresh creative before frequency passes 3.3."
+  ],
+  "caveats": ["EGP converted at a flat 50 per USD.", "Monthly frequency is a lower bound because reach is summed across ads."]
+}

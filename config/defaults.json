@@ -1,0 +1,77 @@
+{
+  "_note": "Thresholds the detectors use. learn.py promote can change them. A client profile overrides any key.",
+  "client": "Client",
+  "file_prefix": "Full_Insights",
+  "base_currency": "USD",
+  "default_currency": null,
+  "fx_to_base": {"USD": 1},
+  "fx_note": "",
+  "ad_spend_currency": "USD",
+  "deal_columns": {
+    "id": "hs_object_id",
+    "name": "dealname",
+    "created": "createdate",
+    "closed": "closedate",
+    "stage": "dealstage",
+    "is_won": "hs_is_closed_won",
+    "amount": "amount",
+    "currency": "deal_currency_code",
+    "owner": "hubspot_owner_id",
+    "channel": "channel",
+    "source": "lead_source",
+    "campaign": "source_campaign",
+    "products": "products",
+    "country": null,
+    "phone_fields": ["phone", "dealname"]
+  },
+  "won_stages": ["closedwon"],
+  "lost_stages": ["closedlost"],
+  "products_separator": ";",
+  "meta_columns": {},
+  "channel_map": {
+    "WhatsApp": ["whatsapp", "wa ", "wa-", "واتس"],
+    "Messenger": ["messenger"],
+    "Instagram": ["instagram", "ig "],
+    "Facebook": ["facebook", "fb"],
+    "Lead Form": ["form", "lead ad", "leadgen"],
+    "Website": ["website", "web", "site", "organic"],
+    "Phone": ["phone", "call"]
+  },
+  "local_phone_patterns": [],
+  "country_labels": {},
+  "owners": [],
+  "owner_names": {},
+  "pre_hire_bucket": "Central / unassigned (pre-hire)",
+  "content_archetypes": {
+    "Comparison": ["vs", "comparison", "compare"],
+    "Walkthrough / Demo": ["walkthrough", "demo", "tutorial", "screen"],
+    "Masterclass / Webinar": ["masterclass", "webinar", "live"],
+    "Authority / Testimonial": ["authority", "testimonial", "review", "success"],
+    "Freebie / Lead magnet": ["free", "download", "template", "ebook", "gift"],
+    "Promo / Offer": ["promo", "offer", "discount", "sale", "bundle"]
+  },
+  "min_won_for_judgement": 30,
+  "detectors": {
+    "lead_quality_trap": {"spike_ratio": 1.5, "cvr_drop_ratio": 0.6, "trailing_months": 3},
+    "infrastructure_shock": {"cvr_drop_ratio": 0.5, "max_inquiry_ratio": 1.3},
+    "efficiency_peak": {"quantile": 0.25},
+    "frequency": {"sweet_spot": [2.8, 3.3], "cost_rise": 0.2},
+    "closing_concentration": {"max_share": 0.8},
+    "geo_value_gap": {"min_gap": 0.1},
+    "ad_concentration": {"max_share": 0.4},
+    "owner_history": {"warn_if_no_start_date": true}
+  },
+  "selfcheck": {"pass_score": 85},
+  "workbook": {
+    "font": "Arial", "size": 11, "bold": true,
+    "title_size": 13, "header_fill": "0F1C36", "title_color": "FFFFFF",
+    "good_scale": ["F8696B", "FFEB84", "63BE7B"],
+    "bad_scale": ["63BE7B", "FFEB84", "F8696B"],
+    "formats": {"money": "$#,##0", "pct": "0.00%", "count": "#,##0", "ratio": "0.00"}
+  },
+  "deck": {
+    "dark": [15, 28, 54], "light": [246, 248, 251], "card": [255, 255, 255], "border": [226, 232, 240],
+    "teal": [0, 150, 136], "steel": [43, 76, 126], "gold": [217, 119, 6], "red": [220, 38, 38],
+    "green": [16, 149, 93], "text": [30, 41, 59], "muted": [100, 116, 139], "font": "Arial"
+  }
+}

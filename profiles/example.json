@@ -1,0 +1,35 @@
+{
+  "_help": "Copy this file per client (keep client profiles outside the skill folder). Delete any key you don't need: defaults come from config/defaults.json.",
+  "client": "Client Name",
+  "file_prefix": "Client_Insights",
+  "base_currency": "USD",
+  "default_currency": "USD",
+  "fx_to_base": {
+    "USD": 1,
+    "EGP": {"default": 0.02, "2025-01": 0.0198}
+  },
+  "fx_note": "State where the FX rates came from. Leave empty if they are the finance team's official rates.",
+  "ad_spend_currency": "USD",
+  "deal_columns": {
+    "country": null,
+    "phone_fields": ["phone", "dealname"]
+  },
+  "won_stages": ["closedwon"],
+  "lost_stages": ["closedlost"],
+  "local_phone_patterns": [
+    {"regex": "01[0125]\\d{8}", "country": "Egypt (+20)"},
+    {"regex": "05\\d{8}", "country": "Saudi Arabia (+966)"}
+  ],
+  "owners": [
+    {"name": "Sales Rep Name", "start_date": "2026-01-15"}
+  ],
+  "pre_hire_bucket": "Central account (before reps joined)",
+  "content_archetypes": {
+    "Comparison": ["vs", "comparison"],
+    "Walkthrough": ["walkthrough", "demo"],
+    "Freebie": ["free", "download", "template"]
+  },
+  "detectors": {
+    "frequency": {"sweet_spot": [2.8, 3.3], "cost_rise": 0.2}
+  }
+}
