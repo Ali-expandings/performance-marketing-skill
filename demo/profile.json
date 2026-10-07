@@ -1,8 +1,0 @@
-{
-  "client": "Sample Academy",
-  "file_prefix": "Sample_Insights",
-  "fx_to_base": {"USD": 1, "EGP": {"default": 0.0200}},
-  "fx_note": "Sample data: EGP at a flat 50 per USD.",
-  "local_phone_patterns": [{"regex": "01[0125]\\d{8}", "country": "Egypt (+20)"}],
-  "owners": [{"name": "Rep One", "start_date": "2026-01-01"}, {"name": "Rep Two", "start_date": "2026-01-01"}, {"name": "Rep Three", "start_date": "2026-01-01"}]
-}

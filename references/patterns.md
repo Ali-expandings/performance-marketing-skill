@@ -60,6 +60,21 @@ ROAS drops significantly while CAC remains relatively stable month-over-month.
 - Evidence: previous and current ROAS, previous and current CAC, previous and current AOV.
 - Recommend: this indicates an AOV collapse (e.g. mix shifting to cheaper products or heavy discounting). Diagnose price, discounting strategy, or product mix shifts.
 
+## 14. Wasted ad spend (detector: `wasted_ad_spend`)
+An ad consumes significant budget in a given month without generating any leads or messages.
+- Evidence: ad name and spend amount.
+- Recommend: ensure tracking is working properly or pause the ad immediately to prevent further waste.
+
+## 15. CAC spike (detector: `cac_spike`)
+CAC jumps significantly above the trailing median in a given month.
+- Evidence: current CAC vs trailing median CAC.
+- Recommend: check for ad fatigue, platform tracking outages, or seasonal CPM spikes driving up acquisition cost.
+
+## 16. Underperforming owner (detector: `underperforming_owner`)
+A specific sales owner's close rate is severely below the team average.
+- Evidence: owner name, close rate vs team close rate, and deal volume.
+- Recommend: audit their pipeline management, follow-up times, or call quality. Ensure they are receiving lead volume and quality comparable to the rest of the team.
+
 ## Adding a pattern
 When a run reveals something the detectors missed:
 1. `learn.py add --kind pattern --text "<general description>" --evidence "<which metric moved how>"`.

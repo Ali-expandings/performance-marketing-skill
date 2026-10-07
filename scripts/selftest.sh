@@ -16,7 +16,8 @@ m = json.load(open(sys.argv[1]))
 found = {(f["pattern"], f.get("period"), f.get("month")) for f in m["findings"]}
 want = [("infrastructure_shock", 2026, 4), ("lead_quality_trap", 2026, 9), ("efficiency_peak", 2026, 8),
         ("frequency_fatigue", 2026, 9), ("seasonality_peak", 2026, 11), ("product_mix_shift", 2026, None),
-        ("roas_decay", 2026, 10)]
+        ("roas_decay", 2026, 10), ("wasted_ad_spend", 2026, 5), ("cac_spike", 2026, 7),
+        ("underperforming_owner", 2026, None)]
 miss = [w for w in want if w not in found]
 pats = {f["pattern"] for f in m["findings"]}
 for p in ["owner_history_guard", "volume_vs_aov", "closing_concentration"]:

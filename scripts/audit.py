@@ -300,6 +300,17 @@ def detect(month_rows, cfg, period):
                             "evidence": {"cac": cur.cac, "prev_cac": prev.cac, "roas": cur.roas, "prev_roas": prev.roas, "aov": cur.aov, "prev_aov": prev.aov},
                             "hint": "ROAS dropped significantly while CAC remained stable. This indicates an AOV collapse (e.g. mix shifting to cheaper products or heavy discounting)."})
 
+        # CAC spike detector
+        trail = df.iloc[max(0, i - d.get("cac_spike", {}).get("trailing_months", 3)):i]
+        ok_trail = trail.dropna(subset=["cac"])
+        if not ok_trail.empty and cur.cac:
+            med_cac = ok_trail.cac.median()
+            spike_ratio = d.get("cac_spike", {}).get("spike_ratio", 1.5)
+            if med_cac and cur.cac >= med_cac * spike_ratio:
+                out.append({"pattern": "cac_spike", "severity": "high", "period": period, "month": int(cur.month),
+                            "evidence": {"cac": cur.cac, "trailing_median_cac": r(med_cac, 2)},
+                            "hint": f"CAC spiked to {cur.cac}, which is >= {spike_ratio}x the trailing median. Check for ad fatigue, platform tracking outages, or seasonal CPM spikes."})
+
     return out
 
 
@@ -322,6 +333,26 @@ def detect_breakdowns(b, cfg, period, prev_b=None):
         out.append({"pattern": "ad_concentration", "severity": "medium", "period": period, "month": None,
                     "evidence": {"ad": ads.iloc[0]["ad"], "share_spend": r(ads.iloc[0]["spend"] / ads.spend.sum())},
                     "hint": "One ad carries most spend: build a creative pipeline before it fatigues."})
+
+    if "wasted_ad_spend" in d and "month" in b["ads_monthly"].columns:
+        min_spend = d["wasted_ad_spend"].get("min_spend", 500)
+        wasted = b["ads_monthly"][(b["ads_monthly"].spend >= min_spend) & (b["ads_monthly"].leads == 0) & (b["ads_monthly"].messages == 0)]
+        if not wasted.empty:
+            top_wasted = wasted.iloc[0]
+            out.append({"pattern": "wasted_ad_spend", "severity": "high", "period": period, "month": int(top_wasted["month"]),
+                        "evidence": {"ad": top_wasted["ad"], "spend": r(top_wasted["spend"])},
+                        "hint": f"Ad '{top_wasted['ad']}' consumed {r(top_wasted['spend'])} in month {int(top_wasted['month'])} without generating any leads or messages. Ensure tracking is working or pause the ad immediately."})
+
+    if "underperforming_owner" in d and not b["owners"].empty:
+        uo_cfg = d["underperforming_owner"]
+        owners = b["owners"]
+        team_cr = owners["won"].sum() / max(1, (owners["won"].sum() + owners["lost"].sum()))
+        for _, row in owners.iterrows():
+            if row["won"] + row["lost"] >= uo_cfg.get("min_deals", 50) and row["owner"] != cfg.get("pre_hire_bucket"):
+                if row["close_rate"] <= team_cr * uo_cfg.get("max_close_rate_ratio", 0.6):
+                    out.append({"pattern": "underperforming_owner", "severity": "medium", "period": period, "month": None,
+                                "evidence": {"owner": row["owner"], "close_rate": r(row["close_rate"]), "team_close_rate": r(team_cr), "deals": int(row["won"] + row["lost"])},
+                                "hint": f"Owner {row['owner']} has a close rate of {r(row['close_rate']*100, 1)}%, which is severely below the team average of {r(team_cr*100, 1)}%. Audit their pipeline management."})
 
     if prev_b is not None:
         p_cur = b["products"]
@@ -443,6 +474,9 @@ def main():
         ads["fatigue_status"] = np.where(ads.frequency > hi_f, "Fatigue", np.where(ads.frequency >= lo_f, "Sweet spot", "Building"))
         ads["archetype"] = [classify_keywords(f"{x} {z}", cfg["content_archetypes"]) for x, z in zip(ads.ad, ads.adset)]
         ads = ads.sort_values("spend", ascending=False)
+
+        ads_monthly = my.assign(month=my.date.dt.month).groupby(["month", "campaign", "adset", "ad"]).agg(spend=("spend", "sum"), leads=("leads", "sum"), messages=("messages", "sum")).reset_index()
+
         arche = ads.groupby("archetype").agg(spend=("spend", "sum"), leads=("leads", "sum"), messages=("messages", "sum"), ads=("ad", "size")).reset_index()
         arche["cpl"] = arche.spend / (arche.leads + arche.messages).replace(0, np.nan)
         arche = arche.sort_values("spend", ascending=False)
@@ -457,7 +491,7 @@ def main():
 
         b = {"owners": owners, "owner_timeline": timeline, "channels": channels, "countries": countries, "products": products,
              "product_month": pm, "channel_month": ch_month, "country_month": geo_month, "owner_month": own_month,
-             "ads": ads, "archetypes": arche, "campaigns": camps}
+             "ads": ads, "ads_monthly": ads_monthly, "archetypes": arche, "campaigns": camps}
 
         prev_b = None
         if len(years) > 1 and y > years[0]:

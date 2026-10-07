@@ -62,7 +62,10 @@
     "owner_history": {"warn_if_no_start_date": true},
     "seasonality_peak": {"multiplier": 1.5},
     "product_mix_shift": {"min_revenue_share": 0.1, "min_share_change": 0.2},
-    "roas_decay": {"max_cac_change": 0.30, "min_roas_drop": 0.2}
+    "roas_decay": {"max_cac_change": 0.30, "min_roas_drop": 0.2},
+    "wasted_ad_spend": {"min_spend": 500},
+    "cac_spike": {"spike_ratio": 1.5, "trailing_months": 3},
+    "underperforming_owner": {"min_deals": 50, "max_close_rate_ratio": 0.6}
   },
   "selfcheck": {"pass_score": 85},
   "workbook": {
