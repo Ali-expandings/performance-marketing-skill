@@ -59,7 +59,10 @@
     "closing_concentration": {"max_share": 0.8},
     "geo_value_gap": {"min_gap": 0.1},
     "ad_concentration": {"max_share": 0.4},
-    "owner_history": {"warn_if_no_start_date": true}
+    "owner_history": {"warn_if_no_start_date": true},
+    "seasonality_peak": {"multiplier": 1.5},
+    "product_mix_shift": {"min_revenue_share": 0.1, "min_share_change": 0.2},
+    "roas_decay": {"max_cac_change": 0.30, "min_roas_drop": 0.2}
   },
   "selfcheck": {"pass_score": 85},
   "workbook": {
