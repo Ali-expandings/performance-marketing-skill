@@ -31,6 +31,13 @@ bash <SKILL_DIR>/scripts/setup.sh
 - Breakeven ROAS (= 1 / gross margin) or target CPA. If unknown, ask for gross margin %. If still unknown, use breakeven ROAS 2.0 and say it is an assumption.
 - Anything to ignore (test campaigns, date range).
 
+## Step 1b: Pick the model tier
+
+```bash
+python3 <SKILL_DIR>/scripts/analyze.py route <FILE> --files <how many files> --task <routine|strategy|attribution|cohort|budget>
+```
+It prints FLASH or PRO. FLASH runs every step. If PRO: run Steps 2-3 on FLASH (cheap and mechanical), then tell the user to switch the model to PRO before Steps 4-5, and continue from `out/summary.md` only. A skill cannot switch the model itself, so say so in one line. Model names per tier: `references/model-routing.md`.
+
 ## Step 2: Profile
 
 ```bash
@@ -95,7 +102,8 @@ Keep it under 400 words. Write in the user's language. Offer to go deeper on one
 
 ## Files
 
-- `scripts/analyze.py`: commands `profile`, `report`, `trend`, `anomalies`, `significance`.
+- `scripts/analyze.py`: commands `profile`, `report`, `trend`, `anomalies`, `route`, `significance`.
+- `references/model-routing.md`: which model for which step.
 - `scripts/setup.sh`: installs dependencies.
 - `references/diagnostics.md`: formulas and detection rules.
 - `references/platform-columns.md`: export column names per platform.

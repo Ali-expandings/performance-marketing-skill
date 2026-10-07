@@ -5,6 +5,7 @@ Usage:
   analyze.py report FILE [--level campaign|adset|ad|platform|day] [--by col,col] [--out DIR] [--map std=Column ...]
   analyze.py anomalies FILE [--out DIR]
   analyze.py trend FILE [--days 7]
+  analyze.py route FILE [--files N] [--task routine|strategy|attribution|cohort|budget]
   report also takes --breakeven-roas X --target-cpa Y to add a SCALE/CUT/WATCH/INSUFFICIENT_DATA verdict column
   analyze.py significance --a-events N --a-trials N --b-events N --b-trials N
 Needs: pip install duckdb pandas openpyxl
@@ -159,6 +160,30 @@ def cmd_report(a):
     print(f"\nwritten to {a.out}/")
 
 
+def cmd_route(a):
+    """Recommend a model tier from simple signals about the data and the task."""
+    con, src = load(a.file)
+    cols = [r[0] for r in con.execute(f"DESCRIBE {src}").fetchall()]
+    n = con.execute(f"SELECT COUNT(*) FROM {src}").fetchone()[0]
+    m = automap(cols, a.map)
+    core = ["spend", "purchases", "revenue", "campaign", "date"]
+    missing = [k for k in core if k not in m]
+    pro, flash = [], []
+    if missing: pro.append(f"core columns not mapped: {missing}")
+    if a.files > 1: pro.append(f"{a.files} files / platforms to reconcile")
+    if a.task in ("strategy", "attribution", "cohort", "budget"): pro.append(f"task needs judgement: {a.task}")
+    if n > 5_000_000: pro.append(f"very large file ({n:,} rows)")
+    if not pro:
+        flash.append("one file, columns mapped, routine task")
+    tier = "PRO" if pro else "FLASH"
+    print(f"rows: {n:,}")
+    print(f"recommended tier: {tier}")
+    for r in (pro or flash): print(" -", r)
+    print("Steps 2-3 (profile, report, trend) are mechanical: FLASH is enough." if tier == "PRO" else "Run every step on FLASH.")
+    if tier == "PRO": print("Switch to PRO for steps 4-5 (diagnose + write the answer). Read out/summary.md only.")
+    print("Model names for each tier: references/model-routing.md")
+
+
 def cmd_trend(a):
     con, src = load(a.file)
     cols = [r[0] for r in con.execute(f"DESCRIBE {src}").fetchall()]
@@ -219,7 +244,7 @@ def cmd_sig(a):
 def main():
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("profile", "report", "anomalies", "trend"):
+    for name in ("profile", "report", "anomalies", "trend", "route"):
         p = sp.add_parser(name)
         p.add_argument("file")
         p.add_argument("--map", nargs="*")
@@ -229,11 +254,13 @@ def main():
         p.add_argument("--breakeven-roas", type=float, default=None)
         p.add_argument("--target-cpa", type=float, default=None)
         p.add_argument("--days", type=int, default=7)
+        p.add_argument("--files", type=int, default=1)
+        p.add_argument("--task", default="routine", help="routine|strategy|attribution|cohort|budget")
     p = sp.add_parser("significance")
     for k in ("a_events", "a_trials", "b_events", "b_trials"):
         p.add_argument("--" + k.replace("_", "-"), dest=k, type=float, required=True)
     a = ap.parse_args()
-    {"profile": cmd_profile, "report": cmd_report, "anomalies": cmd_anomalies, "trend": cmd_trend, "significance": cmd_sig}[a.cmd](a)
+    {"profile": cmd_profile, "report": cmd_report, "anomalies": cmd_anomalies, "trend": cmd_trend, "route": cmd_route, "significance": cmd_sig}[a.cmd](a)
 
 
 if __name__ == "__main__":
