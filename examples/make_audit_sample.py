@@ -31,7 +31,7 @@ def phone(local):
 
 deals, did = [], 1
 for y in (Y1, Y2):
-    for m in range(1, 13 if y == Y1 else 10):
+    for m in range(1, 13):
         inquiries = random.randint(1700, 2200)
         cvr = random.uniform(0.09, 0.11)
         if y == Y2 and m == 4:
@@ -40,6 +40,13 @@ for y in (Y1, Y2):
             cvr = 0.135
         if y == Y2 and m == 9:
             inquiries, cvr = 4100, 0.044
+        if m == 11:  # plant seasonal peak
+            inquiries, cvr = 5000, 0.15
+
+        aov_mult = 1.0
+        if y == Y2 and m == 10: # plant ROAS decay (CAC stable, AOV drops)
+            aov_mult = 0.5
+
         if y == Y1:
             cvr *= 0.85
         n_won = int(inquiries * cvr)
@@ -52,10 +59,13 @@ for y in (Y1, Y2):
                 closed = closed.replace(day=28, month=m, year=y)
             egypt = random.random() < 0.72
             if egypt:
-                cur, amt = "EGP", random.choice([3500, 3800, 4200]) * (1.15 if y == Y2 else 1)
+                cur, amt = "EGP", random.choice([3500, 3800, 4200]) * (1.15 if y == Y2 else 1) * aov_mult
             else:
-                cur, amt = "USD", random.choice([140, 180, 250]) * (1.2 if y == Y2 else 1)
-            prods = PRODUCTS_Y2 if y == Y2 else PRODUCTS_Y1
+                cur, amt = "USD", random.choice([140, 180, 250]) * (1.2 if y == Y2 else 1) * aov_mult
+            if y == Y1:
+                prods = random.choices(PRODUCTS_Y1, weights=[0.4, 0.3, 0.2, 0.1])[0]
+            else:
+                prods = random.choices(PRODUCTS_Y2, weights=[0.4, 0.4, 0.05, 0.1, 0.05])[0]
             owner = "100" if y == Y1 else random.choice(["201", "202", "203"])
             if y == Y1 and random.random() < 0.15:
                 owner = "201"  # reassigned history: Rep One did not work here in Y1
@@ -68,7 +78,7 @@ for y in (Y1, Y2):
                 "hs_is_closed_won": "true" if status == "won" else "false",
                 "amount": round(amt, 2) if status == "won" else "", "deal_currency_code": cur,
                 "hubspot_owner_id": owner, "channel": channel, "lead_source": "Meta Lead Form",
-                "source_campaign": f"{y}-Q{(m - 1) // 3 + 1} Leads", "products": random.choice(prods),
+                "source_campaign": f"{y}-Q{(m - 1) // 3 + 1} Leads", "products": prods,
             })
             did += 1
 
@@ -84,7 +94,7 @@ with open(f"{out}/owners.csv", "w", newline="") as f:
 
 rows = []
 for y in (Y1, Y2):
-    for m in range(1, 13 if y == Y1 else 10):
+    for m in range(1, 13):
         for a in range(12):
             arch = ARCH[a % len(ARCH)]
             spend = random.uniform(800, 1600)

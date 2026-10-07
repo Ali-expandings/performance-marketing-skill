@@ -290,10 +290,20 @@ def detect(month_rows, cfg, period):
             out.append({"pattern": "frequency_fatigue", "severity": "medium", "period": period, "month": int(cur.month),
                         "evidence": {"frequency": cur.frequency, "cac": cur.cac, "prev_cac": prev.cac},
                         "hint": f"Frequency above {hi} with rising CAC: refresh creative or widen audience."})
+
+        # ROAS decay detector
+        if cur.cac and prev.cac and cur.roas and prev.roas and cur.aov and prev.aov:
+            cac_change = abs(cur.cac - prev.cac) / prev.cac
+            roas_drop = (prev.roas - cur.roas) / prev.roas
+            if cac_change <= d.get("roas_decay", {}).get("max_cac_change", 0.30) and roas_drop >= d.get("roas_decay", {}).get("min_roas_drop", 0.2):
+                out.append({"pattern": "roas_decay", "severity": "medium", "period": period, "month": int(cur.month),
+                            "evidence": {"cac": cur.cac, "prev_cac": prev.cac, "roas": cur.roas, "prev_roas": prev.roas, "aov": cur.aov, "prev_aov": prev.aov},
+                            "hint": "ROAS dropped significantly while CAC remained stable. This indicates an AOV collapse (e.g. mix shifting to cheaper products or heavy discounting)."})
+
     return out
 
 
-def detect_breakdowns(b, cfg, period):
+def detect_breakdowns(b, cfg, period, prev_b=None):
     d = cfg["detectors"]
     out = []
     ch = b["channels"]
@@ -312,6 +322,24 @@ def detect_breakdowns(b, cfg, period):
         out.append({"pattern": "ad_concentration", "severity": "medium", "period": period, "month": None,
                     "evidence": {"ad": ads.iloc[0]["ad"], "share_spend": r(ads.iloc[0]["spend"] / ads.spend.sum())},
                     "hint": "One ad carries most spend: build a creative pipeline before it fatigues."})
+
+    if prev_b is not None:
+        p_cur = b["products"]
+        p_prev = prev_b["products"]
+        if not p_cur.empty and not p_prev.empty and "product_mix_shift" in d:
+            tot_cur = p_cur["revenue"].sum()
+            tot_prev = p_prev["revenue"].sum()
+            if tot_cur > 0 and tot_prev > 0:
+                s_cur = p_cur.set_index("product")["revenue"] / tot_cur
+                s_prev = p_prev.set_index("product")["revenue"] / tot_prev
+                for prod, share_c in s_cur.items():
+                    share_p = s_prev.get(prod, 0.0)
+                    if share_c >= d["product_mix_shift"]["min_revenue_share"] or share_p >= d["product_mix_shift"]["min_revenue_share"]:
+                        if abs(share_c - share_p) >= d["product_mix_shift"]["min_share_change"]:
+                            out.append({"pattern": "product_mix_shift", "severity": "info", "period": period, "month": None,
+                                        "evidence": {"product": prod, "prev_share": r(share_p), "new_share": r(share_c)},
+                                        "hint": f"Product {prod} share shifted significantly from {r(share_p*100, 1)}% to {r(share_c*100, 1)}%. Ensure marketing funnels align with this changing mix."})
+
     return out
 
 
@@ -430,7 +458,18 @@ def main():
         b = {"owners": owners, "owner_timeline": timeline, "channels": channels, "countries": countries, "products": products,
              "product_month": pm, "channel_month": ch_month, "country_month": geo_month, "owner_month": own_month,
              "ads": ads, "archetypes": arche, "campaigns": camps}
-        findings += detect_breakdowns(b, cfg, y)
+
+        prev_b = None
+        if len(years) > 1 and y > years[0]:
+            prev_y = years[years.index(y) - 1]
+            if prev_y in result.get("_raw_breakdowns", {}):
+                prev_b = result["_raw_breakdowns"][prev_y]
+
+        if "_raw_breakdowns" not in result:
+            result["_raw_breakdowns"] = {}
+        result["_raw_breakdowns"][y] = b
+
+        findings += detect_breakdowns(b, cfg, y, prev_b)
         if cfg["detectors"]["owner_history"]["warn_if_no_start_date"] and y == years[0] and len(years) > 1:
             later = set(deals[deals.created.dt.year == years[-1]].owner)
             known = {o.get("name") or o.get("id") for o in cfg.get("owners", [])} | set(cfg.get("_verified_starts", []))
@@ -444,10 +483,27 @@ def main():
             v.to_csv(f"{a.out}/tables/{y}_{k}.csv", index=False)
         pd.DataFrame(rows).to_csv(f"{a.out}/tables/{y}_monthly.csv", index=False)
 
+    if "_raw_breakdowns" in result:
+        del result["_raw_breakdowns"]
+
     if len(years) > 1:
         cmp = volume_vs_aov(result["comparable"][years[-2]], result["comparable"][years[-1]], years[-2], years[-1])
         if cmp:
             findings.append(cmp)
+
+        # Seasonality Peak Detector
+        pa, pb = {x["month"]: x for x in result["monthly"][years[-2]]}, {x["month"]: x for x in result["monthly"][years[-1]]}
+        avg_rev_a = sum(x["revenue"] for x in pa.values() if x.get("revenue")) / max(1, len([x for x in pa.values() if x.get("revenue")]))
+        avg_rev_b = sum(x["revenue"] for x in pb.values() if x.get("revenue")) / max(1, len([x for x in pb.values() if x.get("revenue")]))
+        mult = cfg["detectors"].get("seasonality_peak", {}).get("multiplier", 1.5)
+        for mth in comp_months:
+            if mth in pa and mth in pb and pa[mth].get("revenue") and pb[mth].get("revenue"):
+                if pa[mth]["revenue"] >= avg_rev_a * mult and pb[mth]["revenue"] >= avg_rev_b * mult:
+                    findings.append({"pattern": "seasonality_peak", "severity": "info", "period": years[-1], "month": mth,
+                                     "evidence": {"month": mth, f"rev_{years[-2]}": pa[mth]["revenue"], f"avg_{years[-2]}": r(avg_rev_a, 2),
+                                                  f"rev_{years[-1]}": pb[mth]["revenue"], f"avg_{years[-1]}": r(avg_rev_b, 2)},
+                                     "hint": f"Month {mth} consistently outperforms the annual average by >= {mult}x. Ensure budget and capacity are loaded ahead of this seasonal peak."})
+
         a_, b_ = result["comparable"][years[-2]], result["comparable"][years[-1]]
         result["comparison"] = {k: {"from": a_.get(k), "to": b_.get(k), "change_pct": r(div((b_.get(k) or 0) - (a_.get(k) or 0), a_.get(k)))}
                                 for k in ["spend", "leads", "messages", "inquiries", "won", "lost", "revenue", "aov", "cac", "roas", "cvr_inquiry", "close_rate", "cpl"]

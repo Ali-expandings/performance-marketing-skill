@@ -45,6 +45,21 @@ CRM owner fields get reassigned. People hired later often appear as owners of de
 ## 10. Data quality (detector: `data_quality`)
 Unknown currency, won deals without amount, unknown country or channel, duplicate ids, assumed FX. Each one goes into the narrative caveats.
 
+## 11. Seasonality peak (detector: `seasonality_peak`)
+A specific month consistently outperforms the annual average revenue across multiple years.
+- Evidence: revenue that month vs annual average across years.
+- Recommend: ensure budget, ad creatives, and sales capacity are loaded ahead of this seasonal peak.
+
+## 12. Product mix shift (detector: `product_mix_shift`)
+A product's share of revenue changes drastically between periods (e.g. going from 0% to >30%, or dropping heavily).
+- Evidence: the product, previous share, and new share.
+- Recommend: ensure marketing funnels, sales narratives, and operations align with this changing product mix.
+
+## 13. ROAS decay (detector: `roas_decay`)
+ROAS drops significantly while CAC remains relatively stable month-over-month.
+- Evidence: previous and current ROAS, previous and current CAC, previous and current AOV.
+- Recommend: this indicates an AOV collapse (e.g. mix shifting to cheaper products or heavy discounting). Diagnose price, discounting strategy, or product mix shifts.
+
 ## Adding a pattern
 When a run reveals something the detectors missed:
 1. `learn.py add --kind pattern --text "<general description>" --evidence "<which metric moved how>"`.
