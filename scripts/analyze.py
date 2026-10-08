@@ -231,36 +231,143 @@ def cmd_anomalies(a):
         print("\nPossible tracking break (spend normal, zero purchases):", list(low.date.astype(str)))
 
 
+def cmd_blend(a):
+    if not a.true_revenue:
+        sys.exit("Requires --true-revenue to calculate blend factor.")
+
+    con, src = load(a.file)
+    cols = [r[0] for r in con.execute(f"DESCRIBE {src}").fetchall()]
+    m = automap(cols, a.map)
+    build_clean(con, src, m)
+
+    # Calculate overall multiplier
+    overall = con.execute(rollup_sql([], m)).df().iloc[0]
+    reported_revenue = overall["revenue"]
+    if not reported_revenue or reported_revenue == 0:
+        sys.exit("Reported revenue is zero, cannot calculate blend factor.")
+
+    blend_factor = a.true_revenue / reported_revenue
+    print(f"Reported Revenue: {reported_revenue:,.2f}")
+    print(f"True Revenue:     {a.true_revenue:,.2f}")
+    print(f"Blend Multiplier: {blend_factor:.4f}")
+    print("-" * 50)
+
+    dims = a.by.split(",") if a.by else [a.level]
+    dims = [d for d in dims if d in m or d == "date"]
+
+    df = con.execute(rollup_sql(dims, m)).df()
+    df["blended_revenue"] = df["revenue"] * blend_factor
+    df["blended_roas"] = df["blended_revenue"] / df["spend"].replace(0, float("nan"))
+
+    res = df[dims + ["spend", "revenue", "roas", "blended_revenue", "blended_roas"]].head(20)
+    print(res.to_string(index=False))
+
+    if a.out:
+        os.makedirs(a.out, exist_ok=True)
+        df.to_csv(f"{a.out}/blended_roas.csv", index=False)
+        print(f"\nWritten to {a.out}/blended_roas.csv")
+
+def cmd_forecast(a):
+    import numpy as np
+    con, src = load(a.file)
+    cols = [r[0] for r in con.execute(f"DESCRIBE {src}").fetchall()]
+    m = automap(cols, a.map)
+    build_clean(con, src, m)
+
+    # We need date, ad/campaign, spend, roas, frequency.
+    # Group by date and ad level to see trend.
+    dims = [a.level, "date"]
+    df = con.execute(rollup_sql(dims, m)).df().sort_values(["date"])
+
+    if "roas" not in df or "spend" not in df:
+        sys.exit("Forecast requires spend and revenue to calculate ROAS.")
+
+    be = a.breakeven_roas
+    if not be:
+        sys.exit("Requires --breakeven-roas X to forecast fatigue.")
+
+    print(f"Fatigue Forecasting for {a.level} (Breakeven ROAS: {be})")
+    print("-" * 50)
+
+    out = []
+    for name, group in df.groupby(a.level):
+        group = group.dropna(subset=["roas", "spend"])
+        if len(group) < 7:
+            continue
+
+        # Fit a simple linear regression over time for ROAS
+        x = np.arange(len(group))
+        y = group["roas"].values
+        slope, intercept = np.polyfit(x, y, 1)
+
+        current_roas = y[-1]
+
+        if slope >= -0.01:
+            continue # Not decaying significantly
+
+        # Predict when ROAS hits breakeven
+        # be = slope * x + intercept => x = (be - intercept) / slope
+        days_to_be = (be - intercept) / slope
+        days_left = int(days_to_be - x[-1])
+
+        if days_left > 0 and days_left < 30:
+            out.append((name, current_roas, days_left, group["spend"].sum()))
+
+    res = pd.DataFrame(out, columns=["Entity", "Current ROAS", "Days to Fatigue", "Total Spend"])
+    res = res.sort_values("Days to Fatigue")
+    print(res.to_string(index=False) if not res.empty else "No entities are in immediate danger of fatiguing (<30 days).")
+
+
 def cmd_sig(a):
+    # Frequentist Z-test
     p1, p2 = a.a_events / a.a_trials, a.b_events / a.b_trials
     p = (a.a_events + a.b_events) / (a.a_trials + a.b_trials)
     se = math.sqrt(p * (1 - p) * (1 / a.a_trials + 1 / a.b_trials))
     z = (p2 - p1) / se if se else 0
     pv = math.erfc(abs(z) / math.sqrt(2))
-    print(f"A={p1:.4%} B={p2:.4%} lift={(p2/p1-1) if p1 else float('nan'):+.1%} z={z:.2f} p={pv:.4f}")
-    print("significant (p<0.05, >=100 events/arm)" if pv < 0.05 and min(a.a_events, a.b_events) >= 100 else "NOT conclusive")
+
+    # Bayesian Probability to Be Best (Win Probability)
+    # Using Monte Carlo simulation with Beta distributions
+    import numpy as np
+    try:
+        from scipy.stats import beta
+        draws = 100000
+        a_samples = beta.rvs(1 + a.a_events, 1 + a.a_trials - a.a_events, size=draws)
+        b_samples = beta.rvs(1 + a.b_events, 1 + a.b_trials - a.b_events, size=draws)
+        prob_b_beats_a = np.mean(b_samples > a_samples)
+        bayes_str = f" | Win Probability (B > A): {prob_b_beats_a:.2%}"
+        if prob_b_beats_a >= 0.95:
+            bayes_str += " [B is clear winner]"
+        elif prob_b_beats_a <= 0.05:
+            bayes_str += " [A is clear winner]"
+    except ImportError:
+        bayes_str = " | (Install scipy for Bayesian win probability)"
+
+    print(f"A={p1:.4%} B={p2:.4%} lift={(p2/p1-1) if p1 else float('nan'):+.1%} z={z:.2f} p={pv:.4f}{bayes_str}")
+    print("Frequentist significant (p<0.05, >=100 events/arm)" if pv < 0.05 and min(a.a_events, a.b_events) >= 100 else "NOT conclusive (Frequentist)")
 
 
 def main():
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("profile", "report", "anomalies", "trend", "route"):
+    for name in ("profile", "report", "anomalies", "trend", "route", "forecast", "blend"):
         p = sp.add_parser(name)
         p.add_argument("file")
         p.add_argument("--map", nargs="*")
         p.add_argument("--out", default="out")
         p.add_argument("--level", default="campaign")
         p.add_argument("--by")
-        p.add_argument("--breakeven-roas", type=float, default=None)
+        p.add_argument("--breakeven-roas", type=float, default=None, help="Target breakeven ROAS. Required for report verdicts and forecasting.")
         p.add_argument("--target-cpa", type=float, default=None)
         p.add_argument("--days", type=int, default=7)
         p.add_argument("--files", type=int, default=1)
         p.add_argument("--task", default="routine", help="routine|strategy|attribution|cohort|budget")
+        p.add_argument("--true-revenue", type=float, default=None, help="For blend command: actual CRM or Shopify revenue to calibrate ad-reported revenue.")
     p = sp.add_parser("significance")
     for k in ("a_events", "a_trials", "b_events", "b_trials"):
         p.add_argument("--" + k.replace("_", "-"), dest=k, type=float, required=True)
     a = ap.parse_args()
-    {"profile": cmd_profile, "report": cmd_report, "anomalies": cmd_anomalies, "trend": cmd_trend, "route": cmd_route, "significance": cmd_sig}[a.cmd](a)
+    {"profile": cmd_profile, "report": cmd_report, "anomalies": cmd_anomalies, "trend": cmd_trend, "route": cmd_route, "forecast": cmd_forecast, "blend": cmd_blend, "significance": cmd_sig}[a.cmd](a)
 
 
 if __name__ == "__main__":
