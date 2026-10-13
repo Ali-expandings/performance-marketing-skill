@@ -98,9 +98,27 @@ def load_deals(path, owners_path, cfg, findings):
         out["country"] = df[cc].fillna("Unknown")
     else:
         fields = [f for f in c.get("phone_fields", []) if f in df.columns]
-        text = df[fields].fillna("").astype(str).agg(" ".join, axis=1) if fields else pd.Series([""] * len(df))
-        out["country"] = [country_from_text(t, cfg["local_phone_patterns"], cfg["country_labels"]) or "Unknown"
-                          for t in text.loc[out.index]]
+        # Performance optimization: Vectorized string concatenation across phone fields instead of row-by-row agg(axis=1)
+        if fields:
+            text = df[fields[0]].fillna("").astype(str)
+            for f in fields[1:]:
+                text = text + " " + df[f].fillna("").astype(str)
+        else:
+            text = pd.Series([""] * len(df), index=df.index)
+
+        # Performance optimization: Memoize country lookups to avoid redundant regex matching across identical phone numbers
+        country_cache = {}
+        local_pats = cfg["local_phone_patterns"]
+        labels = cfg["country_labels"]
+
+        def _cached_country(t):
+            if not t:
+                return "Unknown"
+            if t not in country_cache:
+                country_cache[t] = country_from_text(t, local_pats, labels) or "Unknown"
+            return country_cache[t]
+
+        out["country"] = [_cached_country(t) for t in text.loc[out.index]]
     unk = (out.loc[won, "country"] == "Unknown").mean() if won.any() else 0
     if unk > 0.1:
         findings.append(dq("unknown_country", f"{unk:.0%} of won deals have no country (no phone found). Add local_phone_patterns or a country column"))
